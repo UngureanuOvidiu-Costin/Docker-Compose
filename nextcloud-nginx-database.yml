@@ -1,0 +1,85 @@
+# @Author: Ungureanu Ovidiu
+# @Contact: ungureanu.ovidiu@techbattlefield.ro
+# @Date: 10.08.2023
+# Nextcloud + NGINX + DATABASE
+
+
+version: "3"
+volumes:
+  nextcloud-data:
+  nextcloud-db:
+  npm-data:
+  npm-ssl:
+  npm-db:
+  wordpress-db:
+  wordpress-data:
+
+
+# TAKE CARE !!! Here in networks we expose services to INTERNET !!!
+networks:
+  frontend:
+  backend:
+
+services:
+  nextcloud-app:
+    image: nextcloud
+    restart: always
+    volumes:
+      - nextcloud-data:/var/www/html
+    environment:
+      - MYSQL_PASSWORD=change me here
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=user for database
+      - MYSQL_HOST=nextcloud-db
+    networks:
+      - frontend
+      - backend
+
+  nextcloud-db:
+    image: mariadb
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    volumes:
+      - nextcloud-db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=change me here
+      - MYSQL_PASSWORD=change me here
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=user for database
+    networks:
+      - backend
+
+  npm-app:
+    image: jc21/nginx-proxy-manager:latest
+    restart: always
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    environment:
+      - DB_MYSQL_HOST=npm-db
+      - DB_MYSQL_PORT=3306
+      - DB_MYSQL_USER=npm user
+      - DB_MYSQL_PASSWORD=npm password
+      - DB_MYSQL_NAME=npm
+    volumes:
+      - npm-data:/data
+      - npm-ssl:/etc/letsencrypt # Optional, if you want free SSL certificate ( renew once in 23 days )
+    networks:
+      - frontend
+      - backend
+
+  npm-db:
+    image: jc21/mariadb-aria:latest
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=change me here
+      - MYSQL_DATABASE=npm
+      - MYSQL_USER=npm user
+      - MYSQL_PASSWORD=change me here
+    volumes:
+      - npm-db:/var/lib/mysql
+    networks:
+      - backend
+
+# Other services (do not specify port, NGINX Proxy manager is gonna user DNS)
